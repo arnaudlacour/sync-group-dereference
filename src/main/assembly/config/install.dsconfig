@@ -1,0 +1,34 @@
+dsconfig create-sync-pipe-plugin \
+    --plugin-name "GroupDereference TouchMemberEntry"  \
+    --type third-party  \
+    --set "description:This will touch the group member entry at the source when the group is updated.Note that this requires the StashConnection extension to be configured on the LDAP source"  \
+    --set extension-argument:strategy=touch-member-entry  \
+    --set extension-class:com.pingidentity.sync.pipe.GroupDereference
+
+dsconfig create-sync-pipe-plugin \
+    --plugin-name "GroupDereference FetchFullMemberEntry"  \
+    --type third-party  \
+    --set "description:This will fetch the group member entry from the source when the group is updated. Note that this requires the StashConnection extension to be configured on the LDAP source. This feeds the GroupMemberSource."  \
+    --set extension-argument:strategy=enqueue-member-entry  \
+    --set extension-class:com.pingidentity.sync.pipe.GroupDereference
+
+dsconfig create-sync-pipe-plugin \
+    --plugin-name "GroupDereference StashMemberDN"  \
+    --type third-party  \
+    --set "description:This will stash the group member entry DN  the when the group is updated. The advantage is that it does not require to stash the connection and may be used to trigger reads on any LDAP external server. This feeds the LDAPMemberSource."  \
+    --set extension-argument:strategy=enqueue-member-dn  \
+    --set extension-class:com.pingidentity.sync.pipe.GroupDereference
+
+#dsconfig create-sync-source \
+#    --source-name "LDAP Member Source"  \
+#    --type third-party  \
+#    --set "description:This source is triggered by updates to groups where only the DN is saved to trigger this source to fetch a full entry from any configured external-server"  \
+#    --set extension-argument:external-server=MyExternalServer  \
+#    --set extension-class:com.pingidentity.sync.source.LDAPMemberSource
+
+#dsconfig create-sync-source \
+#     --source-name "Group Member Source"  \
+#     --type third-party  \
+#     --set "description:This source is triggered by updates to groups where only the full entry is available for this source to avoid having to reach back to the source LDAP server"  \
+#     --set extension-class:com.pingidentity.sync.source.GroupMemberSource
+#

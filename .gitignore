@@ -1,0 +1,6 @@
+*.iml
+.DS_Store
+.svn
+target/
+.idea/
+.floo*
