@@ -1,0 +1,29 @@
+stages:
+    - package
+    - publish
+    - static-analysis
+
+package-job:
+    stage: package
+    tags:
+        - gte
+        - extension
+        - maven
+    script: "JAVA8_HOME=/opt/java mvn -Dmaven.home=/usr/share/maven package"
+
+publish-job:
+    stage: publish
+    tags:
+        - gte
+        - extension
+        - maven
+    script: "mvn -DskipTests -Ppublish install"
+
+fortify-job:
+    tags:
+        - gte
+        - extension
+        - maven
+    stage: static-analysis
+    script:
+        - run

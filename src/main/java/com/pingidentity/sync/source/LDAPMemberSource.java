@@ -103,7 +103,7 @@ public class LDAPMemberSource extends SyncSource
     /**
      * Performs the necessary processing to initialize the instance of the extension
      * @param serverContext the server context
-     * @param config the configuraton object for the instance of the extension
+     * @param config the configuration object for the instance of the extension
      * @param parser the argument parser
      */
     @Override
