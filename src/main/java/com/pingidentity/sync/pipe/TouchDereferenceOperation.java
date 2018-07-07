@@ -4,6 +4,9 @@ import com.unboundid.directory.sdk.common.types.LogSeverity;
 import com.unboundid.directory.sdk.sync.types.SyncServerContext;
 import com.unboundid.ldap.sdk.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * This is a type of dereference operation that will "touch"
  * the dereferenced entry so that they may be handled by regular
@@ -14,6 +17,13 @@ import com.unboundid.ldap.sdk.*;
  */
 public class TouchDereferenceOperation implements DereferenceOperation
 {
+    final static List<Modification> modifications = new ArrayList<Modification>(2){{
+        add(new Modification(ModificationType.DELETE,
+                "objectClass", "top"));
+        add(new Modification(ModificationType.ADD, "objectClass",
+                "top"));
+    }};
+    
     LDAPInterface connection;
     String dn;
     SyncServerContext context;
@@ -43,11 +53,7 @@ public class TouchDereferenceOperation implements DereferenceOperation
             return;
         }
         
-        Modification mod0 = new Modification(ModificationType.DELETE,
-                "objectClass", "top");
-        Modification mod1 = new Modification(ModificationType.ADD, "objectClass",
-                "top");
-        ModifyRequest modifyRequest = new ModifyRequest(dn, mod0, mod1);
+        ModifyRequest modifyRequest = new ModifyRequest(dn, modifications);
         try
         {
             connection.modify(modifyRequest);
