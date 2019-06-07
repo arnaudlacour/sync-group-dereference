@@ -12,6 +12,7 @@ import com.unboundid.util.FixedRateBarrier;
 import com.unboundid.util.args.*;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * This class provides a sync pipe plugin that may be used to parse the contents of a group entry
@@ -50,6 +51,10 @@ public class GroupDereference extends SyncPipePlugin
     private String strategy;
     private String parseMode;
     private boolean abortSync;
+
+    AtomicLong maxQueueSize = new AtomicLong(0L);
+    AtomicLong queueAddFailures = new AtomicLong(0L);
+    AtomicLong queueAddAttempts = new AtomicLong(0L);
     
     
     /**
@@ -410,6 +415,20 @@ public class GroupDereference extends SyncPipePlugin
     
     private void enqeue(DereferenceOperation op)
     {
-        queue.add(op);
+        queueAddAttempts.incrementAndGet();
+        boolean addSuccessful = queue.add(op);
+        if ( !addSuccessful ) {
+            queueAddFailures.incrementAndGet();
+        }
+        updateQueueMax();
+    }
+
+    private synchronized void updateQueueMax()
+    {
+        Long size = new Long(queue.size());
+        if ( size > maxQueueSize.get() )
+        {
+            maxQueueSize.set(size);
+        }
     }
 }

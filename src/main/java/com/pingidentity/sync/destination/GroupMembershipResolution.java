@@ -15,6 +15,17 @@ import com.unboundid.util.args.StringArgument;
 import java.util.Arrays;
 import java.util.List;
 
+
+/**
+ * This class changes the way a user's group memberships are resolved
+ * instead of retrieving the group entry and looking for the user's DN as an attribute value
+ * this class changes the request to search for the user entry and look for the group DN in the member attribute value
+ *
+ * For extremely large groups this can make a significant improvement in the amount of memory required for the engine
+ * to function well and the rate at which changes can be synchronized.
+ *
+ * On the other hand, this strategy will not work well for users that are members of many groups
+ */
 public class GroupMembershipResolution extends LDAPSyncDestinationPlugin
 {
     public static final String ATTRIBUTE_ARG = "attribute";

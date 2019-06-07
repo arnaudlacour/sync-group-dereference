@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.pingidentity</groupId>
     <artifactId>sync-group-dereference</artifactId>
-    <version>0.3.4.0</version>
+    <version>0.3.4.1</version>
     <packaging>jar</packaging>
     <name>sync-group-dereference</name>
     <description>A set of extensions aimed at tackling group sync use cases</description>
