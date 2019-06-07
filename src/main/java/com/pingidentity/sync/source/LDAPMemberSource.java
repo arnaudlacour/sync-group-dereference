@@ -12,10 +12,7 @@ import com.unboundid.util.args.IntegerArgument;
 import com.unboundid.util.args.StringArgument;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Queue;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -31,9 +28,11 @@ public class LDAPMemberSource extends SyncSource
     public static final String ARG_NAME_CONN_MAX = "pool-max-connections";
     public static final int ARG_CONN_INIT_DEFAULT = 1;
     public static final int ARG_CONN_MAX_DEFAULT = 20;
+    public static final String ARG_ATTRIBUTE = "attribute";
     private SyncServerContext serverContext;
     private LDAPConnectionPool ldapExternalServerConnectionPool = null;
     Queue<ChangeRecord> queue = MemberDNQueue.getInstance();
+    private List<String> attributes;
     
     
     /**
@@ -98,7 +97,9 @@ public class LDAPMemberSource extends SyncSource
         parser.addArgument(new StringArgument(null, ARG_NAME_EXTERNAL_SERVER,true,1,"{ext-server}","The name of the external server to use. This must match exactly the external server name in the configuration."));
         parser.addArgument(new IntegerArgument(null, ARG_NAME_CONN_INIT,false,1,"{num-conn}","The initial number of connections to keep in the pool", ARG_CONN_INIT_DEFAULT));
         parser.addArgument(new IntegerArgument(null, ARG_NAME_CONN_MAX,false,1,"{num-conn}","The maximum number of connections to keep in the pool", ARG_CONN_MAX_DEFAULT));
+        parser.addArgument(new StringArgument(null, ARG_ATTRIBUTE,false,0,"{attribute}","Specify the attribute(s) to fetch from the source (Default: *,+)", Arrays.asList("*","+")));
     }
+    
     
     /**
      * Performs the necessary processing to initialize the instance of the extension
@@ -121,6 +122,8 @@ public class LDAPMemberSource extends SyncSource
         {
             serverContext.debugCaught(e);
         }
+    
+        attributes = parser.getStringArgument(ARG_ATTRIBUTE).getValues();
     }
     
     /**
@@ -159,7 +162,7 @@ public class LDAPMemberSource extends SyncSource
     {
         try
         {
-            return ldapExternalServerConnectionPool.getEntry((String) syncOperation.getChangeRecord().getProperty("DN"));
+            return ldapExternalServerConnectionPool.getEntry((String) syncOperation.getChangeRecord().getProperty("DN"),attributes.toArray(new String[attributes.size()]));
         } catch (LDAPException e)
         {
             throw new EndpointException(e);

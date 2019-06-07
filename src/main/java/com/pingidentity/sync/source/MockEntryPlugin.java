@@ -3,9 +3,8 @@ package com.pingidentity.sync.source;
 import com.unboundid.directory.sdk.sync.api.LDAPSyncSourcePlugin;
 import com.unboundid.directory.sdk.sync.types.PostStepResult;
 import com.unboundid.directory.sdk.sync.types.SyncOperation;
-import com.unboundid.ldap.sdk.Entry;
-import com.unboundid.ldap.sdk.LDAPInterface;
-import com.unboundid.ldap.sdk.Modification;
+import com.unboundid.directory.sdk.sync.types.SyncOperationType;
+import com.unboundid.ldap.sdk.*;
 
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -54,12 +53,33 @@ public class MockEntryPlugin extends LDAPSyncSourcePlugin
     @Override
     public PostStepResult postFetch(LDAPInterface sourceConnection, AtomicReference<Entry> fetchedEntryRef, SyncOperation operation)
     {
-        Entry entry = new Entry(operation.getChangeLogEntry().getTargetDN());
-        for(Modification mod: operation.getChangeLogEntry().getModifications())
+        if ( SyncOperationType.RESYNC == operation.getType() )
         {
-            entry.addAttribute(mod.getAttribute());
+            return PostStepResult.CONTINUE;
         }
-        fetchedEntryRef.set(entry);
+        
+        Entry entry = new Entry(operation.getChangeLogEntry().getTargetDN());
+        
+        if ( SyncOperationType.CREATE  == operation.getType() )
+        {
+            for ( Attribute attribute: operation.getChangeLogEntry().getAddAttributes() )
+            {
+                entry.addAttribute(attribute);
+            }
+        }
+        
+        if ( SyncOperationType.MODIFY == operation.getType() )
+        {
+            for (Modification mod : operation.getChangeLogEntry().getModifications())
+            {
+                if ( ModificationType.DELETE != mod.getModificationType() )
+                {
+                    entry.addAttribute(mod.getAttribute());
+                }
+            }
+            fetchedEntryRef.set(entry);
+        }
+        
         return PostStepResult.CONTINUE;
     }
 }
