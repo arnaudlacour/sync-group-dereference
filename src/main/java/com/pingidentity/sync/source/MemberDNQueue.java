@@ -13,7 +13,7 @@ public class MemberDNQueue
     {
     }
     
-    public static Queue<ChangeRecord> getInstance()
+    public static synchronized Queue<ChangeRecord> getInstance()
     {
         if (instance == null)
         {
