@@ -59,7 +59,7 @@ public class TouchDereferenceOperation implements DereferenceOperation
             connection.modify(modifyRequest);
         } catch (LDAPException e)
         {
-            context.logMessage(LogSeverity.DEBUG, e.getDiagnosticMessage());
+            context.logMessage(LogSeverity.MILD_ERROR, e.getMessage());
         }
     }
 }

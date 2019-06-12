@@ -80,7 +80,7 @@ public class WholeEntryDereferenceOperation implements DereferenceOperation
             queue.add(changeRecord);
         } catch (LDAPException e)
         {
-            context.logMessage(LogSeverity.FATAL_ERROR, e.getDiagnosticMessage());
+            context.logMessage(LogSeverity.MILD_ERROR, e.getMessage());
         }
     }
 }
