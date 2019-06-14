@@ -36,7 +36,7 @@ public class DereferenceThread implements ServerThread
      * @throws LDAPException in cases where the execute method does LDAP processing
      */
     @Override
-    public void runThread() throws LDAPException
+    public void runThread()
     {
         while (run)
         {
@@ -58,9 +58,12 @@ public class DereferenceThread implements ServerThread
                 {
                     operation.execute();
                 }
-            } catch (InterruptedException ie)
-            {
+            } catch (InterruptedException ie) {
                 halt();
+            } catch (RuntimeException re) {
+                //Just using sysout for now.  Should be changed later.
+                System.out.println("DereferenceThread exception occurred: " + re.getMessage());
+                re.printStackTrace();
             }
         }
     }
