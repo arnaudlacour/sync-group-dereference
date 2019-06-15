@@ -140,6 +140,8 @@ public class GroupDereference extends SyncPipePlugin
         if (value != null)
         {
             rateBarrier = new FixedRateBarrier(1000L, value);
+        } else {
+            rateBarrier = new FixedRateBarrier(1000L, 1000);
         }
         
         abortSync = parser.getBooleanArgument(ARG_NAME_ABORT_SYNC).isPresent();
