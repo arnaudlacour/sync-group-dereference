@@ -18,7 +18,6 @@ import java.util.Queue;
 
 public class GroupDereferenceMonitorProvider extends MonitorProvider {
 
-    private GroupDereference groupDereference;
     DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy hh:mm:ss");
 
     private volatile MonitorProviderConfig config;
@@ -28,10 +27,6 @@ public class GroupDereferenceMonitorProvider extends MonitorProvider {
      * An empty constructor is *required*
      */
     public GroupDereferenceMonitorProvider() {
-    }
-
-    public GroupDereferenceMonitorProvider(GroupDereference groupDereference){
-        this.groupDereference = groupDereference;
     }
 
     @Override
@@ -87,10 +82,27 @@ public class GroupDereferenceMonitorProvider extends MonitorProvider {
 
         Queue<DereferenceOperation> queue = DereferenceOperationQueue.getInstance();
 
-        result.add(new Attribute("current-queue-size",Integer.toString(queue.size())));
-        result.add(new Attribute("max-queue-size",Long.toString(GroupDereference.maxQueueSize.get())));
-        result.add(new Attribute("queue-add-attempts",Long.toString(GroupDereference.queueAddAttempts.get())));
-        result.add(new Attribute("queue-add-failures",Long.toString(GroupDereference.queueAddFailures.get())));
+        result.add(new Attribute("current-queue-size", Integer.toString(queue.size())));
+        result.add(new Attribute("max-queue-size", Long.toString(GroupDereference.maxQueueSize.get())));
+        result.add(new Attribute("queue-add-attempts", Long.toString(GroupDereference.queueAddAttempts.get())));
+        result.add(new Attribute("queue-add-failures", Long.toString(GroupDereference.queueAddFailures.get())));
+
+        if (GroupDereference.touchMemberDestOverrideConnectionPool != null) {
+            result.add(new Attribute("dest-override-pool-max-conns",
+                    Integer.toString(GroupDereference.touchMemberDestOverrideConnectionPool.getConnectionPoolStatistics().getMaximumAvailableConnections())));
+            result.add(new Attribute("dest-override-pool-avail-conns",
+                    Integer.toString(GroupDereference.touchMemberDestOverrideConnectionPool.getConnectionPoolStatistics().getNumAvailableConnections())));
+            result.add(new Attribute("dest-override-pool-closed-defunct-conns",
+                    Long.toString(GroupDereference.touchMemberDestOverrideConnectionPool.getConnectionPoolStatistics().getNumConnectionsClosedDefunct())));
+            result.add(new Attribute("dest-override-pool-closed-expired-conns",
+                    Long.toString(GroupDereference.touchMemberDestOverrideConnectionPool.getConnectionPoolStatistics().getNumConnectionsClosedExpired())));
+            result.add(new Attribute("dest-override-pool-failed-checkouts",
+                    Long.toString(GroupDereference.touchMemberDestOverrideConnectionPool.getConnectionPoolStatistics().getNumFailedCheckouts())));
+            result.add(new Attribute("dest-override-pool-failed-conn-attempts",
+                    Long.toString(GroupDereference.touchMemberDestOverrideConnectionPool.getConnectionPoolStatistics().getNumFailedConnectionAttempts())));
+            result.add(new Attribute("dest-override-pool-success-checkouts",
+                    Long.toString(GroupDereference.touchMemberDestOverrideConnectionPool.getConnectionPoolStatistics().getNumSuccessfulCheckouts())));
+        }
 
         return result;
     }
