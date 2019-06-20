@@ -52,9 +52,9 @@ public class GroupDereference extends SyncPipePlugin
     private String parseMode;
     private boolean abortSync;
 
-    AtomicLong maxQueueSize = new AtomicLong(0L);
-    AtomicLong queueAddFailures = new AtomicLong(0L);
-    AtomicLong queueAddAttempts = new AtomicLong(0L);
+    static AtomicLong maxQueueSize = new AtomicLong(0L);
+    static AtomicLong queueAddFailures = new AtomicLong(0L);
+    static AtomicLong queueAddAttempts = new AtomicLong(0L);
     
     
     /**
