@@ -1,6 +1,7 @@
 package com.pingidentity.sync.pipe;
 
 import com.unboundid.directory.sdk.common.api.ServerThread;
+import com.unboundid.directory.sdk.common.api.TrustManagerProvider;
 import com.unboundid.directory.sdk.common.types.LogSeverity;
 import com.unboundid.directory.sdk.sync.api.SyncPipePlugin;
 import com.unboundid.directory.sdk.sync.config.SyncPipePluginConfig;
@@ -10,7 +11,13 @@ import com.unboundid.directory.sdk.sync.types.SyncServerContext;
 import com.unboundid.ldap.sdk.*;
 import com.unboundid.util.FixedRateBarrier;
 import com.unboundid.util.args.*;
+import com.unboundid.util.ssl.SSLUtil;
+import com.unboundid.util.ssl.TrustAllTrustManager;
 
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManager;
+import java.security.GeneralSecurityException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -40,9 +47,18 @@ public class GroupDereference extends SyncPipePlugin
     public static final String ARG_NAME_ABORT_SYNC = "skip-group-sync";
     public static final String ARG_NAME_DEREF_PARSE_MODE = "parse-mode";
     public static final String ARG_NAME_VERBOSE = "verbose";
+    public static final String ARG_NAME_EXTERNAL_SERVER_OVERRIDE = "external-server-override";
+    public static final String ARG_NAME_EXTERNAL_SERVER_OVERRIDE_PORT = "external-server-override-port";
+    public static final String ARG_NAME_CONN_INIT = "pool-initial-connections";
+    public static final String ARG_NAME_CONN_MAX = "pool-max-connections";
+    public final static int ARG_CONN_INIT_DEFAULT = 1;
+    public final static int ARG_CONN_MAX_DEFAULT = 20;
+    public final static int ARG_CONN_PORT_DEFAULT = 636;
     public static final String PARSE_MODE_WHOLE_GROUP = "parse-whole-group";
     public static final String PARSE_MODE_CHANGELOG = "parse-group-change";
-    
+
+    static LDAPConnectionPool touchMemberDestOverrideConnectionPool = null;
+
     Queue<DereferenceOperation> queue = null;
     private SyncServerContext context;
     private Integer maxGroupSize;
@@ -50,6 +66,8 @@ public class GroupDereference extends SyncPipePlugin
     private List<String> memberAttributes;
     private String strategy;
     private String parseMode;
+    private String externalServerBindDN;
+    private String externalServerBindPassword;
     private boolean abortSync;
 
     static AtomicLong maxQueueSize = new AtomicLong(0L);
@@ -129,6 +147,11 @@ public class GroupDereference extends SyncPipePlugin
         
         BooleanArgument verboseArg = new BooleanArgument(null, ARG_NAME_VERBOSE, "Verbose output");
         parser.addArgument(verboseArg);
+
+        parser.addArgument(new StringArgument(null, ARG_NAME_EXTERNAL_SERVER_OVERRIDE,true,1,"{external-server-override}","The name of the external server to use in place of the source server for touch operations.  This may be used if you are reading from a replica but wish to write to a master."));
+        parser.addArgument(new IntegerArgument(null, ARG_NAME_EXTERNAL_SERVER_OVERRIDE_PORT,false,1,"{external-server-override-port}","The port of the override server.", ARG_CONN_PORT_DEFAULT));
+        parser.addArgument(new IntegerArgument(null, ARG_NAME_CONN_INIT,false,1,"{num-conn}","The initial number of connections to keep in the override server pool", ARG_CONN_INIT_DEFAULT));
+        parser.addArgument(new IntegerArgument(null, ARG_NAME_CONN_MAX,false,1,"{num-conn}","The maximum number of connections to keep in the override server pool", ARG_CONN_MAX_DEFAULT));
     }
     
     @Override
@@ -140,6 +163,8 @@ public class GroupDereference extends SyncPipePlugin
         if (value != null)
         {
             rateBarrier = new FixedRateBarrier(1000L, value);
+        } else {
+            rateBarrier = new FixedRateBarrier(1000L, 100);
         }
         
         abortSync = parser.getBooleanArgument(ARG_NAME_ABORT_SYNC).isPresent();
@@ -185,6 +210,44 @@ public class GroupDereference extends SyncPipePlugin
     {
         context = serverContext;
         queue = DereferenceOperationQueue.getInstance();
+        LDAPConnection connection = null;
+
+        try {
+            String externalServerName = parser.getStringArgument(ARG_NAME_EXTERNAL_SERVER_OVERRIDE).getValue();
+
+            if (touchMemberDestOverrideConnectionPool == null && externalServerName != null && !externalServerName.equalsIgnoreCase("")) {
+                synchronized (this) {
+                    if (touchMemberDestOverrideConnectionPool == null) {
+                        //TBD better trust management.  We assume LDAPS for this.
+                        TrustAllTrustManager tm = new TrustAllTrustManager();
+                        TrustManager[] trustManagers = new TrustManager[]{tm};
+                        SSLUtil sslUtil = new SSLUtil(trustManagers);
+                        SSLSocketFactory socketFactory = sslUtil.createSSLSocketFactory();
+
+                        Integer connInit = parser.getIntegerArgument(ARG_NAME_CONN_INIT).getValue();
+                        Integer connMax = parser.getIntegerArgument(ARG_NAME_CONN_MAX).getValue();
+                        Integer port = parser.getIntegerArgument(ARG_NAME_EXTERNAL_SERVER_OVERRIDE_PORT).getValue();
+                        externalServerBindDN = serverContext.getObscuredValue("external-server-bind-dn");
+                        externalServerBindPassword = serverContext.getObscuredValue("external-server-bind-password");
+
+                        connection = new LDAPConnection(socketFactory, externalServerName, port, externalServerBindDN, externalServerBindPassword);
+
+                        touchMemberDestOverrideConnectionPool = new LDAPConnectionPool(connection, connInit, connMax);
+                    }
+                }
+            }
+        } catch (LDAPException le) {
+            context.logMessage(LogSeverity.FATAL_ERROR, "Error setting up connection pool: " + le.getMessage() );
+            throw new LDAPException(ResultCode.PROTOCOL_ERROR, le);
+        } catch (GeneralSecurityException gse) {
+            context.logMessage(LogSeverity.FATAL_ERROR, "Error setting up secure socket factory: " + gse.getMessage() );
+            throw new LDAPException(ResultCode.PROTOCOL_ERROR, gse);
+        } finally {
+            if (connection != null) {
+                connection.close();
+            }
+        }
+
         List<String> adminActionsRequired = new ArrayList<>(3);
         List<String> messages = new ArrayList<>(3);
         applyConfiguration(config,parser,adminActionsRequired,messages);
@@ -244,7 +307,7 @@ public class GroupDereference extends SyncPipePlugin
                                     com.unboundid.ldap.sdk.Entry equivalentDestinationEntry,
                                     SyncOperation operation)
     {
-        
+
         /**
          retrieve a connection back to the source where the change was detected
          The connection must have been stashed
@@ -252,7 +315,21 @@ public class GroupDereference extends SyncPipePlugin
          */
         LDAPInterface connection = (LDAPInterface) operation
                 .getAttachment(ATTACHMENT_ID);
-        if (connection == null
+
+        if (touchMemberDestOverrideConnectionPool != null
+                && STRATEGY_TOUCH.equalsIgnoreCase(strategy)) {
+            try {
+                connection = touchMemberDestOverrideConnectionPool.getConnection();
+            } catch (LDAPException le) {
+                context
+                        .logMessage(
+                                LogSeverity.MILD_ERROR,
+                                "No connection for operation "
+                                    + operation.getIdentifiableInfo()
+                                + "but connection is necessary to be able to \"touch\" the source entry. "
+                                + "Please look into your external server override parameters.");
+            }
+        } else if (connection == null
                 && STRATEGY_TOUCH.equalsIgnoreCase(strategy))
         {
             context
@@ -356,6 +433,11 @@ public class GroupDereference extends SyncPipePlugin
                     break;
             }
         }
+
+        if (touchMemberDestOverrideConnectionPool != null) {
+            touchMemberDestOverrideConnectionPool.releaseConnection((LDAPConnection) connection);
+        }
+
         return getResult();
     }
     
